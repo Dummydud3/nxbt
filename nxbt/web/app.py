@@ -74,19 +74,60 @@ def on_shutdown(index):
 
 
 @sio.on('create_pro_controller')
-def on_create_controller():
-    print("Create Controller")
+    def on_create_controller(self, index, controller_type, adapter_path,
+                          colour_body=None, colour_buttons=None,
+                          reconnect_address=None):
+        """Instantiates a given controller as a multiprocessing
+        Process with a shared state dict and a task queue.
 
-    try:
-        reconnect_addresses = nxbt.get_switch_addresses()
-        index = nxbt.create_controller(PRO_CONTROLLER, reconnect_address=reconnect_addresses)
+        Configuration options are available in the form of
+        controller colours.
 
-        with user_info_lock:
-            USER_INFO[request.sid]["controller_index"] = index
+        :param index: The index of the controller
+        :type index: int
+        :param controller_type: The type of Nintendo Switch controller
+        :type controller_type: ControllerTypes
+        :param adapter_path: The DBus path to the Bluetooth adapter
+        :type adapter_path: str
+        :param colour_body: A list of three ints representing the hex
+        colour of the controller, defaults to None
+        :type colour_body: list, optional
+        :param colour_buttons: A list of three ints representing the
+        hex colour of the controller, defaults to None
+        :type colour_buttons: list, optional
+        :param reconnect_address: The address of a Nintendo Switch
+        to reconnect to, defaults to None
+        :type reconnect_address: str, optional
+        """
 
-        emit('create_pro_controller', index)
-    except Exception as e:
-        emit('error', str(e))
+        controller_queue = Queue()
+
+        controller_state = self.controller_resources.dict()
+        controller_state["state"] = "initializing"
+        controller_state["finished_macros"] = []
+        controller_state["errors"] = False
+        controller_state["direct_input"] = json.loads(json.dumps(DIRECT_INPUT_PACKET))
+        controller_state["colour_body"] = colour_body
+        controller_state["colour_buttons"] = colour_buttons
+        controller_state["type"] = str(controller_type)
+        controller_state["adapter_path"] = adapter_path
+        controller_state["last_connection"] = None
+
+        self._controller_queues[index] = controller_queue
+
+        self.state[index] = controller_state
+
+        server = ControllerServer(controller_type,
+                                  adapter_path=adapter_path,
+                                  lock=self.lock,
+                                  state=controller_state,
+                                  task_queue=controller_queue,
+                                  colour_body=colour_body,
+                                  colour_buttons=colour_buttons)
+        controller = Process(target=server.run, args=(reconnect_address,))
+        controller.daemon = True
+        self._children[index] = controller
+        controller.start()
 
 
 @sio.on('input')
