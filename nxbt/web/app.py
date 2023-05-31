@@ -9,6 +9,7 @@ from ..nxbt import Nxbt, PRO_CONTROLLER
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit
 import eventlet
+import socketio
 
 
 app = Flask(__name__,
