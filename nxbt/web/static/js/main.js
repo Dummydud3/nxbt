@@ -23,6 +23,7 @@ let HTML_CONTROLLER_SESSIONS = document.getElementById("controller-sessions");
 let HTML_CONTROLLER_SESSIONS_CONTAINER = document.getElementById("controller-session-container");
 
 const ControllerState = {
+    CREATING: "Creating",
     INITIALIZING: "initializing",
     CONNECTING: "connecting",
     RECONNECTING: "reconnecting",
@@ -380,7 +381,9 @@ function displayError(errorText) {
 function createProController() {
     HTML_CONTROLLER_SELECTION.classList.add('hidden');
     HTML_LOADER.classList.remove('hidden');
-
+    HTML_LOADER_TEXT.innterHTML = CREATING;
+    
+    
     socket.emit('create_pro_controller');
 }
 
